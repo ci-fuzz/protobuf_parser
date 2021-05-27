@@ -1,7 +1,11 @@
+#!/usr/bin/env python3
+
+
 import argparse
 from pathlib import Path
 from proto_parser import ProtoFile
 from subprocess import run
+
 
 def parse_protobuf(input_file):
     proto = ProtoFile()
@@ -47,9 +51,7 @@ extern "C" size_t proto_stub_mutate(uint32_t index, uint8_t* data, size_t size, 
 }}"""
     protobuf_basename = protobuf_file.split(".")[0]
 
-    PROTO_OUT = "pkg/web_app/grpc_driver/example"
     include = "{}/{}.pb.h".format(PROTO_OUT, protobuf_basename)
-    include = "pkg/web_app/grpc_driver/example/greeter.pb.h"
 
     namespace_methods = ""
     switch_cases = ""
@@ -62,7 +64,7 @@ extern "C" size_t proto_stub_mutate(uint32_t index, uint8_t* data, size_t size, 
     }}\n  """.format(count, protobuf_basename, rpc["request"])
 
     stub_cpp = stub_cpp_template.format(include, namespace_methods, switch_cases)
-    print(stub_cpp)
+    return stub_cpp
 
 
 def compile_protobuf(PROTOC_BIN, PROTO_OUT, input_file):
@@ -74,8 +76,9 @@ def main():
     PROTOC_BIN = "/home/roman/projects/yandex/grpc-java/protoc-3.17.0/bin/protoc"
     PROTO_OUT = "."
 
-    parser = argparse.ArgumentParser(description='Parse Protobuf description')
-    parser.add_argument("protbuf_file")
+    parser = argparse.ArgumentParser(description='Parse Protobuf descriptions and generate stub cpps', usage='./main.py example.proto')
+    parser.add_argument('protbuf_file')
+    parser.add_argument('--out', nargs='?', default='./stub.cpp')
     args = parser.parse_args()
     protobuf_file = args.protbuf_file
     rpcs = parse_protobuf(protobuf_file)
@@ -83,7 +86,10 @@ def main():
     compile_protobuf(PROTOC_BIN, PROTO_OUT, protobuf_file)
 
     # rpcs format [{"service":"Greeter", "rpc":"SayHello", "request":"HelloRequest"}]
-    proto_stub_cpp_generator(rpcs, PROTO_OUT, protobuf_file)
+    stub_cpp = proto_stub_cpp_generator(rpcs, PROTO_OUT, protobuf_file)
+
+    with open(args.out, "w") as fd:
+        fd.write(stub_cpp)
 
 
 if __name__ == "__main__":
